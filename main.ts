@@ -136,7 +136,7 @@ function Main(): void {
     
                             currentBrightness = filteredAverage;
                         } else {
-                            if(args.debug) {console.log("[DEBUG]:", "Threshold not met")};
+                            //if(args.debug) {console.log("[DEBUG]:", "Threshold not met")};
                         }
 
                         processing = false;
