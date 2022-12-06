@@ -106,33 +106,39 @@ function Main(): void {
                         }
                         filteredAverage = Math.round(filteredAverage);
 
-                        if(global.config.useSmoothTransition) {                            
-                            let currentTime:number = 0;
-                            let targetTime:number = Math.round(global.config.transitionTime);
-                            let steps:number = Math.floor(global.config.transitionTime / global.config.updateRate);
-                            let stepSize:number = (targetTime*(global.config.transitionTime/global.config.transitionRate)/100);
-                            let currentStep:number = 0;
-
-                            let animationInterval = setInterval(function(): void {
-                                if(args.debug) {
-                                    console.log("[DEBUG]:", `Larp from ${currentBrightness} to ${finalAverage}`);
-                                    console.log("[DEBUG]:", `Current larp time:`, currentTime, targetTime);
-                                };
-                                if(currentTime < targetTime) {
-                                    if(args.debug) {console.log("[DEBUG]:", `Larp set: ${lerp(currentBrightness, finalAverage, (currentTime>targetTime)? 1 : currentTime)}`)};
-                                    exec(`brightnessctl set "${lerp(currentBrightness, finalAverage, (currentTime>targetTime)? targetTime : currentTime)}%"`);
-                                    currentTime = currentTime + global.config.transitionRate;
-                                } else {
-                                    console.log("[DEBUG]:", "Close larp interval");
-                                    clearInterval(animationInterval);
-                                }
-                            }, global.config.transitionRate);
+                        //only change brightness if new brightness (finalAverage) is outside the range of the treshold
+                        if(Math.abs(currentBrightness - filteredAverage) >= global.config.threshold) {
+                            if(global.config.useSmoothTransition) {                            
+                                let currentTime:number = 0;
+                                let targetTime:number = Math.round(global.config.transitionTime);
+                                let steps:number = Math.floor(global.config.transitionTime / global.config.updateRate);
+                                let stepSize:number = (targetTime*(global.config.transitionTime/global.config.transitionRate)/100);
+                                let currentStep:number = 0;
+    
+                                let animationInterval = setInterval(function(): void {
+                                    if(args.debug) {
+                                        console.log("[DEBUG]:", `Larp from ${currentBrightness} to ${finalAverage}`);
+                                        console.log("[DEBUG]:", `Current larp time:`, currentTime, targetTime);
+                                    };
+                                    if(currentTime < targetTime) {
+                                        if(args.debug) {console.log("[DEBUG]:", `Larp set: ${lerp(currentBrightness, finalAverage, (currentTime>targetTime)? 1 : currentTime)}`)};
+                                        exec(`brightnessctl set "${lerp(currentBrightness, finalAverage, (currentTime>targetTime)? targetTime : currentTime)}%"`);
+                                        currentTime = currentTime + global.config.transitionRate;
+                                    } else {
+                                        console.log("[DEBUG]:", "Close larp interval");
+                                        clearInterval(animationInterval);
+                                    }
+                                }, global.config.transitionRate);
+                            } else {
+                                if(args.debug) {console.log("[DEBUG]:", `Set brightness: ${filteredAverage}`)};
+                                exec(`brightnessctl set "${filteredAverage}%"`);
+                            }
+    
+                            currentBrightness = filteredAverage;
                         } else {
-                            if(args.debug) {console.log("[DEBUG]:", `Set brightness: ${filteredAverage}`)};
-                            exec(`brightnessctl set "${filteredAverage}%"`);
+                            if(args.debug) {console.log("[DEBUG]:", "Threshold not met")};
                         }
 
-                        currentBrightness = filteredAverage;
                         processing = false;
                     })
                 }
