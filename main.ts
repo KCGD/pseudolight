@@ -1,24 +1,23 @@
 import * as fs from "fs";
+import * as os from 'os';
 import * as path from "path";
 import * as process from "process";
 import {exec} from 'child_process';
 import * as jpeg from 'jpeg-js';
+import * as confparser from './src/modules/configParser';
+import {config} from './src/defaults/config.h';
 
 //requires ffmpeg and brightnessctl
-//ffmpeg -f v4l2 -input_format mjpeg -i /dev/video0 -r:30 -update -filter:v fps=fps=${rate} output_%04d.png
+//ffmpeg -f v4l2 -input_format mjpeg -i /dev/video0 -r:30 -update -filter:v fps=fps=${global.config.updateRate} output_%04d.png
 
 //create template for user argument parsing
 //only flags that require aditional arguments will be assigned here
-let knownFlags:string[] = ["--help", "-h"];
+let knownFlags:string[] = ["--help", "-h", "--debug"];
 
 //store process arguments
 let args = {
-
+    debug: false
 }
-
-//configs
-const rate:number = 2;
-const bias:number = 10;
 
 //working vars
 let processing:boolean = false;
@@ -37,78 +36,100 @@ function Main(): void {
                 console.log(fs.readFileSync(path.join(__dirname, "./src/HelpFile")).toString());
                 process.exit(0);
             break;
+            case "--debug":
+                args.debug = true;
+            break;
         }
+    }
+
+    //load configuration
+    let configDirectory:string = path.join(os.homedir(), ".config/pseudolight");
+    if(!fs.existsSync(configDirectory)) {
+        fs.mkdirSync(configDirectory, {'recursive': true});
+        fs.copyFileSync(path.join(__dirname, "./src/defaults/pseudolight.conf"), path.join(configDirectory, "./pseudolight.conf"));
+
+        confparser.parse(path.join(configDirectory, "./pseudolight.conf"), path.join(__dirname, "./src/defaults/pseudolight.conf.defaults.json"), function(config:config): void {
+            global.config = config;
+            _start();
+        });
+    } else {
+        confparser.parse(path.join(configDirectory, "./pseudolight.conf"), path.join(__dirname, "./src/defaults/pseudolight.conf.defaults.json"), function(config:config): void {
+            global.config = config;
+            _start();
+        });
     }
     
-    //make temp path if nessicary
-    if(!fs.existsSync("/tmp/pseudolight")) {
-        fs.mkdirSync("/tmp/pseudolight", {'recursive': true});
-    } else {
-        clearTmp();
-    }
-
-    fs.watch("/tmp/pseudolight", {}, function(event): void {
-        //remove all except current
-        if(!processing) {
-            processing = true;
-            filterTmp();
-            let targetImage = fs.readdirSync("/tmp/pseudolight")[0];
-            if(targetImage) {
-                //console.log(`READ: ${targetImage}`);
-                fs.readFile(`/tmp/pseudolight/${targetImage}`, function(err, imageData): void {
-                    let image = jpeg.decode(imageData, {'formatAsRGBA': false, useTArray: true});
-                    let splitArray:any[][] = splitToChunks([...Array.from(image.data)], 3);
-                    //console.log(splitArray);
-                    let averageBrightness:number = 0;
-
-                    for(let i = 0; i < splitArray.length; i++) {
-                        let thisArray:any[] = splitArray[i];
-                        let thisAverage:number = 0;
-                        for(let j = 0; j < thisArray.length; j++) {
-                            thisAverage += thisArray[j];
-                        }
-                        thisAverage = thisAverage/3;
-                        //console.log(thisAverage);
-                        averageBrightness += thisAverage;
-                    }
-
-                    let finalAverage:number = (((averageBrightness/(splitArray.length))/225)*100);
-
-                    //apply bias, limit and round
-                    let filteredAverage:number = finalAverage;
-                    filteredAverage += bias;
-                    if(filteredAverage > 100) {
-                        filteredAverage = 100;
-                    }
-                    filteredAverage = Math.round(filteredAverage);
-
-                    console.log(filteredAverage);
-                    exec(`brightnessctl set "${filteredAverage}%"`)
-
-                    processing = false;
-                })
-            }
+    function _start(): void {
+        if(args.debug) {
+            console.log(global.config);
         }
-    });
 
-    exec(`ffmpeg -f v4l2 -input_format mjpeg -i /dev/video0 -r:30 -update -filter:v fps=fps=${rate} "/tmp/pseudolight/output_%04d.jpg"`);
+        //make temp path if nessicary
+        if(!fs.existsSync(`${config.temporaryPath}`)) {
+            fs.mkdirSync(`${config.temporaryPath}`, {'recursive': true});
+        } else {
+            clearTmp();
+        }
+
+        fs.watch(`${config.temporaryPath}`, {}, function(event): void {
+            //remove all except current
+            if(!processing) {
+                processing = true;
+                filterTmp();
+                let targetImage = fs.readdirSync(config.temporaryPath)[0];
+                
+                if(targetImage) {
+                    fs.readFile(`${config.temporaryPath}/${targetImage}`, function(err, imageData): void {
+                        let image = jpeg.decode(imageData, {'formatAsRGBA': false, useTArray: true});
+                        let splitArray:any[][] = splitToChunks([...Array.from(image.data)], 3);
+                        let averageBrightness:number = 0;
+
+                        for(let i = 0; i < splitArray.length; i++) {
+                            let thisArray:any[] = splitArray[i];
+                            let thisAverage:number = 0;
+                            for(let j = 0; j < thisArray.length; j++) {
+                                thisAverage += thisArray[j];
+                            }
+                            thisAverage = thisAverage/3;
+                            averageBrightness += thisAverage;
+                        }
+
+                        let finalAverage:number = (((averageBrightness/(splitArray.length))/225)*100);
+
+                        //apply global.config.bias, limit and round
+                        let filteredAverage:number = finalAverage;
+                        filteredAverage += global.config.bias;
+                        if(filteredAverage > 100) {
+                            filteredAverage = 100;
+                        }
+                        filteredAverage = Math.round(filteredAverage);
+
+                        if(args.debug) {console.log("[DEBUG]:", `Set brightness: ${filteredAverage}`)};
+                        exec(`brightnessctl set "${filteredAverage}%"`)
+
+                        processing = false;
+                    })
+                }
+            }
+        });
+
+        if(args.debug){console.log("[DEBUG]:", `ffmpeg -f v4l2 -input_format mjpeg -i /dev/video0 -r:30 -update -filter:v fps=fps=${global.config.updateRate} "${config.temporaryPath}/output_%04d.jpg"`)}
+        exec(`ffmpeg -f v4l2 -input_format mjpeg -i /dev/video0 -r:30 -update -filter:v fps=fps=${global.config.updateRate} "${config.temporaryPath}/output_%04d.jpg"`);
+    }
 }
 
 function clearTmp(): void {
-    let imageList:string[] = fs.readdirSync("/tmp/pseudolight");
+    let imageList:string[] = fs.readdirSync(`${config.temporaryPath}`);
     for(let i = 0; i < imageList.length; i++) {
-        //console.log(`REMOVE: /tmp/pseudolight/${imageList[i]}`);
-        fs.unlinkSync(`/tmp/pseudolight/${imageList[i]}`);
+        fs.unlinkSync(`${config.temporaryPath}/${imageList[i]}`);
     }
 }
 
 function filterTmp(): void {
-    let imageList:string[] = fs.readdirSync("/tmp/pseudolight");
+    let imageList:string[] = fs.readdirSync(`${config.temporaryPath}`);
     for(let i = 0; i < imageList.length - 1; i++) {
-        //console.log(`REMOVE: /tmp/pseudolight/${imageList[i]}`);
-        fs.unlinkSync(`/tmp/pseudolight/${imageList[i]}`);
+        fs.unlinkSync(`${config.temporaryPath}/${imageList[i]}`);
     }
-    //console.log(`REMAINING: ${fs.readdirSync("/tmp/pseudolight")[0]}`)
 }
 
 

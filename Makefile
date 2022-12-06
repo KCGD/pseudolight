@@ -12,6 +12,10 @@ build:
 	npx pkg package.json
 	make clean
 
+purge:
+	make clean || true
+	rm -rv ~/.config/pseudolight
+
 run:
 	make clean || true
 	make

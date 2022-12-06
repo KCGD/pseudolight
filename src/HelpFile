@@ -1,1 +1,9 @@
-help info goes here
+Pseudolight v0.0.1
+
+Usage: pseudolight <args>
+
+Args:
+    --debug:        Enable debug logging
+
+Info:
+    config is stored in ~/.config/pseudolight/pseudolight.conf by default
