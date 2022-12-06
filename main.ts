@@ -6,7 +6,7 @@ import {exec} from 'child_process';
 import * as jpeg from 'jpeg-js';
 import * as confparser from './src/modules/configParser';
 import {config} from './src/defaults/config.h';
-import {lerp} from './src/modules/interpolate';
+import {lerp, ease} from './src/modules/interpolate';
 
 //requires ffmpeg and brightnessctl
 //ffmpeg -f v4l2 -input_format mjpeg -i /dev/video0 -r:30 -update -filter:v fps=fps=${global.config.updateRate} output_%04d.png
@@ -100,7 +100,7 @@ function Main(): void {
 
                         //apply global.config.bias, limit and round
                         let filteredAverage:number = finalAverage;
-                        filteredAverage += global.config.bias;
+                
                         if(filteredAverage > 100) {
                             filteredAverage = 100;
                         }
@@ -110,36 +110,31 @@ function Main(): void {
                         if(Math.abs(currentBrightness - filteredAverage) >= global.config.threshold) {
                             if(global.config.useSmoothTransition) {                            
                                 let currentTime:number = 0;
-                                let targetTime:number = Math.round(global.config.transitionTime);
-                                let steps:number = Math.floor(global.config.transitionTime / global.config.updateRate);
-                                let stepSize:number = (targetTime*(global.config.transitionTime/global.config.transitionRate)/100);
-                                let currentStep:number = 0;
-    
-                                let animationInterval = setInterval(function(): void {
-                                    if(args.debug) {
-                                        console.log("[DEBUG]:", `Larp from ${currentBrightness} to ${finalAverage}`);
-                                        console.log("[DEBUG]:", `Current larp time:`, currentTime, targetTime);
-                                    };
-                                    if(currentTime < targetTime) {
-                                        if(args.debug) {console.log("[DEBUG]:", `Larp set: ${lerp(currentBrightness, finalAverage, (currentTime>targetTime)? 1 : currentTime)}`)};
-                                        exec(`brightnessctl set "${lerp(currentBrightness, finalAverage, (currentTime>targetTime)? targetTime : currentTime)}%"`);
-                                        currentTime = currentTime + global.config.transitionRate;
-                                    } else {
-                                        console.log("[DEBUG]:", "Close larp interval");
+
+                                //animation interval
+                                let animationInterval = setInterval(function(){
+                                    if(global.config.transitionTime / currentTime <= 1) {
+                                        if(args.debug) {console.log("[DEBUG]:", "Lerp clear interval")};
+                                        processing = false;
+                                        currentBrightness = filteredAverage;
                                         clearInterval(animationInterval);
+                                    } else {
+                                        if(args.debug) {console.log("[DEBUG]:", `Lerp current time ${currentTime}`)};
+                                        if(args.debug) {console.log("[DEBUG]:", `Lerp set brightness: ${applyBias(lerp(currentBrightness, filteredAverage, ease(currentTime/1000)), Number(global.config.bias), 100)}`)};
+                                        exec(`brightnessctl set "${applyBias(lerp(currentBrightness, filteredAverage, ease(currentTime/1000)), Number(global.config.bias), 100)}%"`);
+                                        currentTime += Number(global.config.transitionRate);
                                     }
                                 }, global.config.transitionRate);
                             } else {
                                 if(args.debug) {console.log("[DEBUG]:", `Set brightness: ${filteredAverage}`)};
                                 exec(`brightnessctl set "${filteredAverage}%"`);
+                                currentBrightness = filteredAverage;
+                                processing = false;
                             }
-    
-                            currentBrightness = filteredAverage;
                         } else {
-                            //if(args.debug) {console.log("[DEBUG]:", "Threshold not met")};
+                            if(args.debug) {console.log("[DEBUG]:", "Threshold not met")};
+                            processing = false;
                         }
-
-                        processing = false;
                     })
                 }
             }
@@ -162,6 +157,10 @@ function filterTmp(): void {
     for(let i = 0; i < imageList.length - 1; i++) {
         fs.unlinkSync(`${config.temporaryPath}/${imageList[i]}`);
     }
+}
+
+function applyBias(number:number, bias:number, max:number): number {
+    return((number + bias > 100)? 100 : number+bias);
 }
 
 
