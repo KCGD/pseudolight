@@ -22,7 +22,7 @@ let args = {
 
 //working vars
 let processing:boolean = false;
-let currentBrightness:number = 50;
+let currentBrightness:number = 0;
 
 //main function
 Main();
