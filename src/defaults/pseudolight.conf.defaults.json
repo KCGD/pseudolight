@@ -1,4 +1,5 @@
 {
+    "useSmoothTransition":false,
     "variables": {
         "USER": ""
     }

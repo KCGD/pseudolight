@@ -6,6 +6,7 @@ import {exec} from 'child_process';
 import * as jpeg from 'jpeg-js';
 import * as confparser from './src/modules/configParser';
 import {config} from './src/defaults/config.h';
+import {lerp} from './src/modules/interpolate';
 
 //requires ffmpeg and brightnessctl
 //ffmpeg -f v4l2 -input_format mjpeg -i /dev/video0 -r:30 -update -filter:v fps=fps=${global.config.updateRate} output_%04d.png
@@ -21,6 +22,7 @@ let args = {
 
 //working vars
 let processing:boolean = false;
+let currentBrightness:number = 50;
 
 //main function
 Main();
@@ -49,12 +51,12 @@ function Main(): void {
         fs.copyFileSync(path.join(__dirname, "./src/defaults/pseudolight.conf"), path.join(configDirectory, "./pseudolight.conf"));
 
         confparser.parse(path.join(configDirectory, "./pseudolight.conf"), path.join(__dirname, "./src/defaults/pseudolight.conf.defaults.json"), function(config:config): void {
-            global.config = config;
+            global.config = config as config;
             _start();
         });
     } else {
         confparser.parse(path.join(configDirectory, "./pseudolight.conf"), path.join(__dirname, "./src/defaults/pseudolight.conf.defaults.json"), function(config:config): void {
-            global.config = config;
+            global.config = config as config;
             _start();
         });
     }
@@ -104,9 +106,33 @@ function Main(): void {
                         }
                         filteredAverage = Math.round(filteredAverage);
 
-                        if(args.debug) {console.log("[DEBUG]:", `Set brightness: ${filteredAverage}`)};
-                        exec(`brightnessctl set "${filteredAverage}%"`)
+                        if(global.config.useSmoothTransition) {                            
+                            let currentTime:number = 0;
+                            let targetTime:number = Math.round(global.config.transitionTime);
+                            let steps:number = Math.floor(global.config.transitionTime / global.config.updateRate);
+                            let stepSize:number = (targetTime*(global.config.transitionTime/global.config.transitionRate)/100);
+                            let currentStep:number = 0;
 
+                            let animationInterval = setInterval(function(): void {
+                                if(args.debug) {
+                                    console.log("[DEBUG]:", `Larp from ${currentBrightness} to ${finalAverage}`);
+                                    console.log("[DEBUG]:", `Current larp time:`, currentTime, targetTime);
+                                };
+                                if(currentTime < targetTime) {
+                                    if(args.debug) {console.log("[DEBUG]:", `Larp set: ${lerp(currentBrightness, finalAverage, (currentTime>targetTime)? 1 : currentTime)}`)};
+                                    exec(`brightnessctl set "${lerp(currentBrightness, finalAverage, (currentTime>targetTime)? targetTime : currentTime)}%"`);
+                                    currentTime = currentTime + global.config.transitionRate;
+                                } else {
+                                    console.log("[DEBUG]:", "Close larp interval");
+                                    clearInterval(animationInterval);
+                                }
+                            }, global.config.transitionRate);
+                        } else {
+                            if(args.debug) {console.log("[DEBUG]:", `Set brightness: ${filteredAverage}`)};
+                            exec(`brightnessctl set "${filteredAverage}%"`);
+                        }
+
+                        currentBrightness = filteredAverage;
                         processing = false;
                     })
                 }
