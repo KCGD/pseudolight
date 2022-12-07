@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as os from 'os';
 import * as path from "path";
 import * as process from "process";
-import {exec, execSync} from 'child_process';
+import {exec, execSync, spawn} from 'child_process';
 import * as jpeg from 'jpeg-js';
 import * as confparser from './src/modules/configParser';
 import {config} from './src/defaults/config.h';
@@ -234,8 +234,37 @@ function Main(): void {
             }
         });
 
-        if(args.debug){console.log("[DEBUG]:", `ffmpeg -f v4l2 -input_format mjpeg -i /dev/video0 -r:30 -update -filter:v fps=fps=${global.config.updateRate} "${config.temporaryPath}/output_%04d.jpg"`)}
-        exec(`ffmpeg -f v4l2 -input_format mjpeg -i /dev/video0 -r:30 -update -filter:v fps=fps=${global.config.updateRate} "${config.temporaryPath}/output_%04d.jpg"`);
+        _launchFFmpeg();
+        function _launchFFmpeg(_attempts?:number): void {
+            //clear current processing
+            processing = false;
+
+            let attempts:number = (_attempts !== undefined)? _attempts : 0;
+
+            if(attempts < Number(global.config.ffmpegRelaunchAttempts)) {
+                if(args.debug){console.log("[DEBUG]:", `ffmpeg -f v4l2 -input_format mjpeg -i /dev/video0 -r:30 -update -filter:v fps=fps=${global.config.updateRate} "${config.temporaryPath}/output_%04d.jpg"`)}
+                let ffmpegProcess = exec(`ffmpeg -f v4l2 -input_format mjpeg -i /dev/video0 -r:30 -update -filter:v fps=fps=${global.config.updateRate} "${config.temporaryPath}/output_%04d.jpg"`);
+
+                ffmpegProcess.on('message', function(message): void {
+                    if(args.debug) {console.log("[ERROR | INFO]:", message)};
+                })
+                ffmpegProcess.on('error', function(error): void {
+                    if(args.debug) {console.log("[ERROR | FFMPEG]:", error)};
+                })
+
+                ffmpegProcess.on('close', _handleFFmpegClose);
+
+                function _handleFFmpegClose(): void {
+                    if(args.debug) {console.log("[ERROR]:", `ffmpeg closed unexpectedly, relaunching in 5 seconds...`)};
+                    setTimeout(function() {
+                        _launchFFmpeg(attempts + 1);
+                    }, 5000);
+                }
+            } else {
+                console.log("[ERROR | FATAL]:", `FFmpeg failed to launch ${attempts} times. Exiting.`);
+                process.exit(14);
+            }
+        }
     }
 }
 

@@ -7,4 +7,5 @@ export type config = {
     transitionTime:number;
     transitionRate:number;
     temporaryPath:string;
+    ffmpegRelaunchAttempts:number;
 }
