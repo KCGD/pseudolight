@@ -2,7 +2,7 @@
 Description=Service that uses your webcam to automatically adjust screen brightness.
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=graphical.target
 
 [Service]
 Type=simple
