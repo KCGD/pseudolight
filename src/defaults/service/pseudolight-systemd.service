@@ -1,0 +1,14 @@
+[Unit]
+Description=Service that uses your webcam to automatically adjust screen brightness.
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/pseudolight
+Restart=always
+RestartSec=5
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=%n

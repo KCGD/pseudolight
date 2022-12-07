@@ -2,22 +2,24 @@ import * as fs from "fs";
 import * as os from 'os';
 import * as path from "path";
 import * as process from "process";
-import {exec} from 'child_process';
+import {exec, execSync} from 'child_process';
 import * as jpeg from 'jpeg-js';
 import * as confparser from './src/modules/configParser';
 import {config} from './src/defaults/config.h';
 import {lerp, ease} from './src/modules/interpolate';
+import {DetectInit} from './src/modules/bin/detect-init';
 
 //requires ffmpeg and brightnessctl
 //ffmpeg -f v4l2 -input_format mjpeg -i /dev/video0 -r:30 -update -filter:v fps=fps=${global.config.updateRate} output_%04d.png
 
 //create template for user argument parsing
 //only flags that require aditional arguments will be assigned here
-let knownFlags:string[] = ["--help", "-h", "--debug"];
+let knownFlags:string[] = ["--help", "-h", "--debug", "--install-daemon", "--uninstall-daemon"];
 
 //store process arguments
 let args = {
-    debug: false
+    debug: false,
+    mode: "main"
 }
 
 //working vars
@@ -41,31 +43,123 @@ function Main(): void {
             case "--debug":
                 args.debug = true;
             break;
+            case "--install-daemon":
+                args.mode = "installDaemon";
+            break;
+            case "--uninstall-daemon":
+                args.mode = "uninstallDaemon";
+            break;
         }
     }
 
-    //load configuration
-    let configDirectory:string = path.join(os.homedir(), ".config/pseudolight");
-    if(!fs.existsSync(configDirectory)) {
-        fs.mkdirSync(configDirectory, {'recursive': true});
-        fs.copyFileSync(path.join(__dirname, "./src/defaults/pseudolight.conf"), path.join(configDirectory, "./pseudolight.conf"));
+    //switch mode
+    switch(args.mode) {
+        case "main":
+            //load configuration and start program's main route
+            let configDirectory:string = path.join(os.homedir(), ".config/pseudolight");
+            if(!fs.existsSync(configDirectory)) {
+                fs.mkdirSync(configDirectory, {'recursive': true});
+                fs.copyFileSync(path.join(__dirname, "./src/defaults/pseudolight.conf"), path.join(configDirectory, "./pseudolight.conf"));
 
-        confparser.parse(path.join(configDirectory, "./pseudolight.conf"), path.join(__dirname, "./src/defaults/pseudolight.conf.defaults.json"), function(config:config): void {
-            global.config = config as config;
-            _start();
-        });
-    } else {
-        confparser.parse(path.join(configDirectory, "./pseudolight.conf"), path.join(__dirname, "./src/defaults/pseudolight.conf.defaults.json"), function(config:config): void {
-            global.config = config as config;
-            _start();
-        });
+                confparser.parse(path.join(configDirectory, "./pseudolight.conf"), path.join(__dirname, "./src/defaults/pseudolight.conf.defaults.json"), function(config:config): void {
+                    global.config = config as config;
+                    _start();
+                });
+            } else {
+                confparser.parse(path.join(configDirectory, "./pseudolight.conf"), path.join(__dirname, "./src/defaults/pseudolight.conf.defaults.json"), function(config:config): void {
+                    global.config = config as config;
+                    _start();
+                });
+            }
+        break;
+
+        //install the daemon
+        case "installDaemon":
+            switch(DetectInit()) {
+                //systemd
+                case "systemd":
+                    if(process.getuid) {
+                        if(process.getuid() === 0) {
+                            //install daemon
+                            console.log(`[INFO]: Installing daemon`);
+                            fs.copyFileSync(path.join(__dirname, "./src/defaults/service/pseudolight-systemd.service"), "/etc/systemd/system/pseudolight-systemd.service");
+                            console.log(`[INFO]: Starting pseudolight-systemd.service`);
+                            execSync(`systemctl enable --now pseudolight-systemd.service`);
+                            process.exit(0);
+                        } else {
+                            console.log(`[ERROR | FATAL]: Cannot install daemon as a standard user. Please run as root.`);
+                        }
+                    } else {
+                        console.log(`[ERROR | FATAL]: Could not get UID of current process.`);
+                        process.exit(1);
+                    }
+                break;
+
+                //svinit
+                case "sysvinit":
+                    console.log(`[ERROR | FATAL]: Sysvinit support not implemented yet!`);
+                    process.exit(1);
+                break;
+
+                //upstart
+                case "upstart":
+                    console.log(`[ERROR | FATAL]: Upstart support not implemented yet!`);
+                    process.exit(1);
+                break;
+
+                //unknown / unsupported
+                default:
+                    console.log(`[ERROR | FATAL]: Unsupported init system "${DetectInit()}"`);
+                    process.exit(1);
+            }
+        break;
+
+        //uninstall daemon
+        case "uninstallDaemon":
+            switch(DetectInit()) {
+                //systemd
+                case "systemd":
+                    if(process.getuid) {
+                        if(process.getuid() === 0) {
+                            //install daemon
+                            console.log(`[INFO]: Disabling pseudolight-systemd.service`);
+                            execSync(`systemctl stop pseudolight-systemd.service`);
+                            execSync(`systemctl disable pseudolight-systemd.service`);
+                            console.log(`[INFO]: Remove pseudolight-systemd.service`);
+                            fs.unlinkSync("/etc/systemd/system/pseudolight-systemd.service");
+                            console.log(`[INFO]: Reloading daemons`);
+                            execSync("systemctl reset-failed");
+                            process.exit(0);
+                        } else {
+                            console.log(`[ERROR | FATAL]: Cannot uninstall daemon as a standard user. Please run as root.`);
+                        }
+                    } else {
+                        console.log(`[ERROR | FATAL]: Could not get UID of current process.`);
+                        process.exit(1);
+                    }
+                break;
+
+                //svinit
+                case "sysvinit":
+                    console.log(`[ERROR | FATAL]: Sysvinit support not implemented yet!`);
+                    process.exit(1);
+                break;
+
+                //upstart
+                case "upstart":
+                    console.log(`[ERROR | FATAL]: Upstart support not implemented yet!`);
+                    process.exit(1);
+                break;
+
+                //unknown / unsupported
+                default:
+                    console.log(`[ERROR | FATAL]: Unsupported init system "${DetectInit()}"`);
+                    process.exit(1);
+            }
+        break;
     }
     
     function _start(): void {
-        if(args.debug) {
-            console.log(global.config);
-        }
-
         //make temp path if nessicary
         if(!fs.existsSync(`${config.temporaryPath}`)) {
             fs.mkdirSync(`${config.temporaryPath}`, {'recursive': true});

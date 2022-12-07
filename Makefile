@@ -28,7 +28,10 @@ rb:
 	@./Builds/pseudolight
 
 install:
-	ln -s -v -f "$(BUILD_DIR)/mcc" /usr/local/bin/mcc
+	cp ./Builds/pseudolight /usr/local/bin -v
+
+uninstall:
+	rm /usr/local/bin/pseudolight -v
 
 clean:
 	find ./src -name "*.js" -type f
