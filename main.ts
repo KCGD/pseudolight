@@ -1,12 +1,12 @@
 import * as fs from "fs";
 import * as os from 'os';
 import * as path from "path";
-import * as process from "process";
-import {exec, execSync, spawn} from 'child_process';
 import * as jpeg from 'jpeg-js';
-import * as confparser from './src/modules/configParser';
+import * as process from "process";
 import {config} from './src/defaults/config.h';
+import {exec, execSync, spawn} from 'child_process';
 import {lerp, ease} from './src/modules/interpolate';
+import * as confparser from './src/modules/configParser';
 import {DetectInit} from './src/modules/bin/detect-init';
 
 //requires ffmpeg and brightnessctl
