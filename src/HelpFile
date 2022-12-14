@@ -3,7 +3,12 @@ Pseudolight v0.0.1
 Usage: pseudolight <args>
 
 Args:
-    --debug:        Enable debug logging
+    --debug:            Enable debug logging
+    --install-daemon    Installs and runs pseudolight as a daemon
+    --uninstall-daemon  Uninstalls the pseudolight daemon if it is installed
+    --edit-config       Opens pseudolight.conf in your text editor
+    --erase-config      Deletes pseudolight's configuration from the system
+    --purge             Completely removes pseudolight from the system (configs, daemons)
 
 Info:
     config is stored in ~/.config/pseudolight/pseudolight.conf by default
