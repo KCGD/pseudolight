@@ -147,13 +147,17 @@ function Main(): void {
                         if(process.getuid) {
                             if(process.getuid() === 0) {
                                 //install daemon
-                                console.log(`[INFO]: Disabling pseudolight-systemd.service`);
-                                execSync(`systemctl stop pseudolight-systemd.service`);
-                                execSync(`systemctl disable pseudolight-systemd.service`);
-                                console.log(`[INFO]: Remove pseudolight-systemd.service`);
-                                fs.unlinkSync("/etc/systemd/system/pseudolight-systemd.service");
-                                console.log(`[INFO]: Reloading daemons`);
-                                execSync("systemctl reset-failed");
+                                if(fs.existsSync("/etc/systemd/system/pseudolight-systemd.service")) {
+                                    console.log(`[INFO]: Disabling pseudolight-systemd.service`);
+                                    execSync(`systemctl stop pseudolight-systemd.service`);
+                                    execSync(`systemctl disable pseudolight-systemd.service`);
+                                    console.log(`[INFO]: Remove pseudolight-systemd.service`);
+                                    fs.unlinkSync("/etc/systemd/system/pseudolight-systemd.service");
+                                    console.log(`[INFO]: Reloading daemons`);
+                                    execSync("systemctl reset-failed");
+                                } else {
+                                    console.log(`[ERROR]: Pseudolight daemon not installed! (checked for: "/etc/systemd/system/pseudolight-systemd.service")`);
+                                }
                             } else {
                                 console.log(`[ERROR | FATAL]: Cannot uninstall daemon as a standard user. Please run as root.`);
                             }
@@ -212,10 +216,10 @@ function Main(): void {
             case "eraseConfig":
                 if(args.debug) {console.log(`[DEBUG]: Erasing config files`)}
                 let m_configPath:string = path.join(os.homedir(), "./.config/pseudolight/pseudolight.conf");
+
                 if(fs.existsSync(m_configPath)) {
-                    if(args.debug) {console.log(`[DEBUG]: Removing [${m_configPath}]`)};
-                    fs.rmSync(m_configPath);
-                    fs.rmSync(path.dirname(m_configPath));
+                    if(args.debug) {console.log(`[DEBUG]: Removing [${path.dirname(m_configPath)}]`)};
+                    fs.rmSync(path.dirname(m_configPath), {'recursive': true});
                 } else {
                     console.log(`[ERROR | FATAL]: Could not find config path (looked in: "${m_configPath}")`);
                     process.exit(1);
