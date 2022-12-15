@@ -72,5 +72,14 @@ in order to apply the settings.
 # Contribution
 Contributions are always welcome! Please follow the general structure of the project when contributing in order to preserve code readability and maintainability. I aim to keep this project as minimal as possible.
 
+# Work-In-Progress features
+These are features which are not currently implemented, but are planned to be added soon.
+* Webcam selection via configuration file
+  * Webcam autodetection
+* Support for more init systems
+  * sv/openrc
+  * upstart
+* Consideration for brightness of on-screen content (may not work under wayland)
+
 # Licensing
 This project is open source, under the GNU Public License v2.
