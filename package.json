@@ -20,7 +20,7 @@
       "./src/**/*"
     ],
     "targets": [
-      "node18-linux-x64"
+      "node18-linux"
     ]
   },
   "bin": "main.js",
