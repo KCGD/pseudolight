@@ -12,7 +12,7 @@ cd pseudolight
 ```
 ### Installing dependencies
 
-To build this program, make sure you have `nodejs`,  `npm`, `brightnessctl` and any text editor installed (eg: vim or nano)
+To build this program, make sure you have `nodejs`,  `npm`, `brightnessctl` `make` and any text editor installed (eg: vim or nano)
 
 #### Arch
 ```bash
@@ -80,6 +80,7 @@ These are features which are not currently implemented, but are planned to be ad
   * sv/openrc
   * upstart
 * Consideration for brightness of on-screen content (may not work under wayland)
+* Auto-disabling when webcam is being used.
 
 # Licensing
 This project is open source, under the GNU Public License v2.
