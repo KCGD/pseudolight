@@ -1,7 +1,7 @@
 
 # Maintainer: KCGD <kcgdhosting@gmail.com>
 pkgname=pseudolight
-pkgver=1.0.0
+pkgver=1.0.1
 pkgrel=1
 pkgdesc=""
 arch=('x86_64' 'arm64' 'aarch64')
