@@ -20,7 +20,7 @@ install=
 changelog=
 source=(https://github.com/KCGD/pseudolight/archive/refs/tags/$pkgver.tar.gz)
 noextract=()
-sha256sums=('e131c9a1f2295e3938dccfbc195a0101d8b998c328fb42770216d7709b497c7f')
+sha256sums=('334f47716ef38a20e5c4e2babbbfa47da6d2df4698fbf18474e0299285fcf040')
 
 build() {
   cd "$srcdir/$pkgname-$pkgver"
