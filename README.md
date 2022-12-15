@@ -12,7 +12,7 @@ cd pseudolight
 ```
 ### Installing dependencies
 
-To build this program, make sure you have `nodejs`,  `npm`, `brightnessctl` `make` and any text editor installed (eg: vim or nano)
+To build this program, make sure you have `nodejs`,  `npm`, `brightnessctl` `make` `ffmpeg` and any text editor installed (eg: vim or nano)
 
 #### Arch
 ```bash
