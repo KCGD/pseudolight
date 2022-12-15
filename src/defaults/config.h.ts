@@ -4,7 +4,7 @@ export type config = {
     rate:number;
     threshold:number;
     textEditor: string;
-    useSmoothTransition:boolean;
+    useSmoothTransition:string;
     transitionType: "ease" | "linear";
     transitionTime:number;
     transitionRate:number;

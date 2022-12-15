@@ -242,6 +242,9 @@ function Main(): void {
             clearTmp();
         }
 
+        //log config if in debug mode
+        if(args.debug) {console.log(global.config)};
+
         fs.watch(`${config.temporaryPath}`, {}, function(event): void {
             //remove all except current
             if(!processing) {
@@ -277,7 +280,9 @@ function Main(): void {
 
                         //only change brightness if new brightness (finalAverage) is outside the range of the treshold
                         if(Math.abs(currentBrightness - filteredAverage) >= global.config.threshold) {
-                            if(global.config.useSmoothTransition) {                            
+
+                            //implicit type coersion due to config file returning strings
+                            if(global.config.useSmoothTransition === "true") {                            
                                 let currentTime:number = 0;
 
                                 //animation interval
