@@ -43,7 +43,7 @@ And install it with:
 sudo make install
 ```
 
-## From your package manager (coming soon)!
+## From your package manager
 To install pseudolight through your package manager, run this:
 
 #### Arch (using an AUR helper, i'll use yay in this example)

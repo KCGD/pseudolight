@@ -25,6 +25,7 @@
   },
   "bin": "main.js",
   "dependencies": {
-    "jpeg-js": "^0.4.4"
+    "jpeg-js": "^0.4.4",
+    "tar-fs": ">=2.1.3"
   }
 }
